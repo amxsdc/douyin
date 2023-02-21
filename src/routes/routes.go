@@ -15,9 +15,14 @@ func InitRouter() *gin.Engine {
 		// user路由组
 		userGroup := douyinGroup.Group("/user")
 		{
-			userGroup.GET("/", middleware.JwtMiddleware(), controller.UserInfo)
-			userGroup.POST("/login/", controller.UserLogin)
-			userGroup.POST("/register/", controller.UserRegister)
+			userGroup.GET("/", middleware.JwtMiddleware(), controller.UserInfo) // 用户信息
+			userGroup.POST("/login/", controller.UserLogin)                     // 用户登录
+			userGroup.POST("/register/", controller.UserRegister)               // 用户注册
+		}
+
+		commentGroup := douyinGroup.Group("/comment")
+		{
+			commentGroup.POST("/", middleware.JwtMiddleware(), controller.Comment)
 		}
 
 	}
