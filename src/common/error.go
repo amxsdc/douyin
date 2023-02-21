@@ -13,4 +13,8 @@ var (
 	ErrorPasswordFalse   = errors.New("密码错误")
 	ErrorRelationExit    = errors.New("关注已存在")
 	ErrorRelationNull    = errors.New("关注不存在")
+	ErrorSelection       = errors.New("SQL查询错误")
+	ErrorDeletion        = errors.New("SQL删除错误")
+	ErrorInsertion       = errors.New("SQL插入错误")
+	ErrorCommentNull     = errors.New("评论为空")
 )
