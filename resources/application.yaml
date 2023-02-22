@@ -1,6 +1,6 @@
  url: 127.0.0.1
- userName: dog
- passWord: 123456
+ userName: root
+ passWord: root
  dbName: douyin
  port: 3306
 

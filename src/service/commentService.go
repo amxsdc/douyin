@@ -4,6 +4,7 @@ import (
 	"douyin/src/common"
 	"douyin/src/dao"
 	"douyin/src/model"
+	"fmt"
 	"strconv"
 )
 
@@ -75,6 +76,21 @@ func DeleteCommentById(commentId string, userId string, videoId string) (string,
 
 func ListAllComments(videoId string) []model.Comment {
 	var comments []model.Comment
-	dao.SqlSession.Model(&model.Comment{}).Where("video_id= ?", videoId).Find(&comments)
+	dao.SqlSession.Model(&model.Comment{}).Where("video_id= ?", videoId).Order("created_at asc").Find(&comments)
 	return comments
+}
+
+func UpdateVideoCommentCounts(videoId string, count int) error {
+	var video model.Video
+	if err := dao.SqlSession.Model(&model.Video{}).Where("id= ?", videoId).Find(&video).Error; err != nil {
+		return common.ErrorSelection
+	}
+	fmt.Println(video)
+	if count < 0 {
+		video.CommentCount = video.CommentCount - uint(count*-1)
+	} else {
+		video.CommentCount = video.CommentCount + uint(count)
+	}
+	dao.SqlSession.Save(video)
+	return nil
 }

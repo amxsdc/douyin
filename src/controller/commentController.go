@@ -56,7 +56,7 @@ func Comment(c *gin.Context) {
 		// 返回响应信息
 		c.JSON(http.StatusOK, CommentLeavingResponse{
 			Response: common.Response{
-				StatusCode: 1,
+				StatusCode: 0,
 				StatusMsg:  "操作成功",
 			},
 			CommentResponse: comment,
@@ -76,7 +76,7 @@ func Comment(c *gin.Context) {
 		// 返回响应信息
 		c.JSON(http.StatusOK, CommentLeavingResponse{
 			Response: common.Response{
-				StatusCode: 1,
+				StatusCode: 0,
 				StatusMsg:  "操作成功",
 			},
 			CommentResponse: comment,
@@ -93,12 +93,16 @@ func Comment(c *gin.Context) {
 	}
 }
 
+// CommentLeaving TODO 需要事务
 func CommentLeaving(videoId string, userId string, commentText string) (CommentResponse, error) {
 	// 查询用户信息
 	user, err := UserInfoService(userId)
 
 	// 添加评论
 	commentId, createDate, err := service.AddComment(commentText, userId, videoId)
+
+	// 增加视频评论次数
+	err = service.UpdateVideoCommentCounts(videoId, 1)
 
 	// 返回响应消息
 	return CommentResponse{
@@ -109,6 +113,7 @@ func CommentLeaving(videoId string, userId string, commentText string) (CommentR
 	}, err
 }
 
+// CommentDeleting TODO 需要事务
 func CommentDeleting(videoId string, userId string, commentId string) (CommentResponse, error) {
 	// 查询用户信息
 	user, err := UserInfoService(userId)
@@ -125,6 +130,9 @@ func CommentDeleting(videoId string, userId string, commentId string) (CommentRe
 
 	// 对commentId 进行格式转化
 	comId, _ := strconv.Atoi(commentId)
+
+	// 减少视频评论次数
+	err = service.UpdateVideoCommentCounts(videoId, -1)
 
 	// 返回响应消息
 	return CommentResponse{

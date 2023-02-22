@@ -30,8 +30,14 @@ func InitRouter() *gin.Engine {
 
 		commentGroup := douyinGroup.Group("/comment")
 		{
-			commentGroup.POST("/action", middleware.JwtMiddleware(), controller.Comment)
-			commentGroup.GET("/list/", middleware.JwtMiddleware(), controller.CommentsList)
+			commentGroup.POST("/action", middleware.JwtMiddleware(), controller.Comment)    // 发表｜删除评论
+			commentGroup.GET("/list/", middleware.JwtMiddleware(), controller.CommentsList) // 评论列表
+		}
+
+		favoriteGroup := douyinGroup.Group("/favorite")
+		{
+			favoriteGroup.POST("/action/", middleware.JwtMiddleware(), controller.Favorite)  // 点赞
+			favoriteGroup.GET("/list/", middleware.JwtMiddleware(), controller.FavoriteList) // 喜欢列表
 		}
 
 	}
