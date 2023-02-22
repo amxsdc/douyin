@@ -2,10 +2,15 @@ package main
 
 import (
 	"douyin/src/dao"
+	"douyin/src/model"
 	"douyin/src/routes"
+	"encoding/gob"
 )
 
 func main() {
+	// 绑定User
+	gob.Register(model.User{})
+
 	//连接数据库
 	err := dao.InitMySql()
 	if err != nil {
