@@ -4,7 +4,6 @@ import (
 	"douyin/src/common"
 	"douyin/src/dao"
 	"douyin/src/model"
-	"fmt"
 	"strconv"
 )
 
@@ -18,8 +17,14 @@ func GetVideoById(videoId string) (model.Video, error) {
 }
 
 // UpdateFavoriteCount 更新视频点赞数
-// TODO 需要处理点赞的并发操作
 func UpdateFavoriteCount(video *model.Video, user *model.User, author *model.User, change int) error {
+	// 上锁
+	m.Lock()
+
+	// 设置解锁
+	defer m.Unlock()
+
+	// 判断是否为负
 	if video.FavoriteCount == 0 && change < 0 {
 		return common.ErrorFavoriteUpdate
 	}
@@ -45,24 +50,38 @@ func UpdateFavoriteCount(video *model.Video, user *model.User, author *model.Use
 
 // FavoriteAction 点赞/取消点赞行为
 func FavoriteAction(videoId string, userId uint, count int) error {
+	// 开启事务
+	tx := dao.SqlSession.Begin()
+
 	// 根据videoId获取视频信息
 	video, err := GetVideoById(videoId)
+	if err != nil {
+		tx.Rollback()
+		return common.ErrorSelection
+	}
 	// 获取视频作者信息用户更新
 	author, err := GetUser(video.AuthorId)
+	if err != nil {
+		tx.Rollback()
+		return common.ErrorUpdate
+	}
 	// 获取用户以便进行更新
 	user, err := GetUser(userId)
+	if err != nil {
+		tx.Rollback()
+		return common.ErrorUpdate
+	}
 
+	// 判断是否重复点赞
 	if IsFavoriteRepeated(userId, videoId) && count > 0 {
 		return common.ErrorFavoriteRepeat
 	}
 
+	// 判断是否为自己给自己点赞
 	if user.ID == author.ID {
 		err = UpdateFavoriteCount(&video, &user, &user, count)
 		dao.SqlSession.Save(video)
 		dao.SqlSession.Save(user)
-		if err != nil {
-			return err
-		}
 	} else {
 		// 更新点赞信息
 		err = UpdateFavoriteCount(&video, &user, &author, count)
@@ -73,8 +92,14 @@ func FavoriteAction(videoId string, userId uint, count int) error {
 		dao.SqlSession.Save(user)
 	}
 
+	if err != nil {
+		tx.Rollback()
+		return common.ErrorUpdate
+	}
+
 	vId, _ := strconv.Atoi(videoId)
 
+	// 增添或删除记录
 	if count > 0 {
 		err = InsertFavorite(uint(vId), userId)
 	} else if count < 0 {
@@ -82,8 +107,12 @@ func FavoriteAction(videoId string, userId uint, count int) error {
 	}
 
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
+
+	// 提交事务
+	tx.Commit()
 	return nil
 }
 
@@ -103,7 +132,7 @@ func InsertFavorite(videoId uint, userId uint) error {
 		UserId:  userId,
 		State:   0,
 	}
-	fmt.Println()
+
 	if err := dao.SqlSession.Model(&model.Favorite{}).Create(&favorite).Error; err != nil {
 		return common.ErrorFavoriteRepeat
 	}
@@ -122,10 +151,13 @@ func DeleteFavorite(videoId uint, userId uint) error {
 // GetVideoByUserId 根据userId获取视频信息
 func GetVideoByUserId(userId string) ([]model.Video, error) {
 	var videoIds []model.Favorite
+	// 查询userId对应的video信息
 	if err := dao.SqlSession.Model(&model.Favorite{}).Where("user_id=?", userId).Find(&videoIds).Error; err != nil {
 		return []model.Video{}, nil
 	}
+
 	var videos []model.Video
+	// 将视频数组插入到响应体中
 	for _, videoId := range videoIds {
 		var video model.Video
 		dao.SqlSession.Model(&model.Video{}).Where("id=?", videoId.VideoId).Find(&video)

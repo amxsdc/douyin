@@ -4,9 +4,11 @@ import (
 	"douyin/src/common"
 	"douyin/src/dao"
 	"douyin/src/model"
-	"fmt"
 	"strconv"
+	"sync"
 )
+
+var m sync.Mutex
 
 // AddComment 添加评论的持久化操作
 func AddComment(commentText string, userId string, videoId string) (uint, string, error) {
@@ -80,17 +82,27 @@ func ListAllComments(videoId string) []model.Comment {
 	return comments
 }
 
+// UpdateVideoCommentCounts 修改视频的评论总数
 func UpdateVideoCommentCounts(videoId string, count int) error {
+	// 上锁
+	m.Lock()
+
+	// 设置解锁
+	defer m.Unlock()
+
+	// 根据videoId获取video内容
 	var video model.Video
 	if err := dao.SqlSession.Model(&model.Video{}).Where("id= ?", videoId).Find(&video).Error; err != nil {
 		return common.ErrorSelection
 	}
-	fmt.Println(video)
+
+	// 进行修改操作
 	if count < 0 {
 		video.CommentCount = video.CommentCount - uint(count*-1)
 	} else {
 		video.CommentCount = video.CommentCount + uint(count)
 	}
 	dao.SqlSession.Save(video)
+
 	return nil
 }
