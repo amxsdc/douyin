@@ -17,4 +17,5 @@ var (
 	ErrorDeletion        = errors.New("SQL删除错误")
 	ErrorInsertion       = errors.New("SQL插入错误")
 	ErrorCommentNull     = errors.New("评论为空")
+	ErrorSessionSave     = errors.New("用户登录状态异常,请重试")
 )

@@ -88,7 +88,7 @@ func UserLogin(c *gin.Context) {
 	username := c.Query("username")
 	password := c.Query("password")
 
-	userLoginResponse, err := UserLoginService(username, password)
+	userLoginResponse, err := UserLoginService(c, username, password)
 
 	//用户不存在返回对应的错误
 	if err != nil {
@@ -109,7 +109,7 @@ func UserLogin(c *gin.Context) {
 }
 
 // UserLoginService 用户登录处理函数
-func UserLoginService(userName string, passWord string) (UserIdTokenResponse, error) {
+func UserLoginService(c *gin.Context, userName string, passWord string) (UserIdTokenResponse, error) {
 
 	//0.数据准备
 	var userResponse = UserIdTokenResponse{}
@@ -131,6 +131,12 @@ func UserLoginService(userName string, passWord string) (UserIdTokenResponse, er
 	token, err := middleware.CreateToken(login.Model.ID, login.Name)
 	if err != nil {
 		return userResponse, err
+	}
+
+	//4.将用户信息存入session中
+	err = service.SetCurrentUser(c, login)
+	if err != nil {
+		return UserIdTokenResponse{}, err
 	}
 
 	userResponse = UserIdTokenResponse{

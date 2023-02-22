@@ -24,16 +24,21 @@ type CommentResponse struct {
 	CreateDate string                `json:"create_date"`
 }
 
+type CommentListResponse struct {
+	common.Response
+	Comments []CommentResponse `json:"comment_list"`
+}
+
 func Comment(c *gin.Context) {
 	// 第一次使用先创建数据库
 	dao.SqlSession.AutoMigrate(&model.Comment{})
 
-	// 获取token和videoId等基本信息
-	token := c.Query("token")
+	// 获取videoId, action_type等基本信息
 	videoId := c.Query("video_id")
 	actionType, _ := strconv.Atoi(c.Query("action_type"))
-	userId := token // 要进行转化
-	userId = "1"
+
+	// 从session中获取userId
+	userId := strconv.Itoa(int(service.GetCurrentUser(c).ID))
 
 	// 1为发布评论, 2为删除评论
 	if actionType == 1 {
@@ -128,4 +133,42 @@ func CommentDeleting(videoId string, userId string, commentId string) (CommentRe
 		Content:    commentText,
 		CreateDate: createDate,
 	}, err
+}
+
+func CommentsList(c *gin.Context) {
+	// 第一次使用先创建数据库
+	dao.SqlSession.AutoMigrate(&model.Comment{})
+
+	// 获取videoId
+	videoId := c.Query("video_id")
+
+	// 根据videoId查询评论
+	comments := service.ListAllComments(videoId)
+
+	// 将Comment插入到CommentListResponse中
+	var commentResponses []CommentResponse
+	for _, comment := range comments {
+		userId := comment.UserId
+		userInfo, err := UserInfoService(strconv.Itoa(int(userId)))
+		if err != nil {
+			return
+		}
+		commentResponses = append(commentResponses, CommentResponse{
+			Id:         comment.ID,
+			UserInfo:   userInfo,
+			Content:    comment.Content,
+			CreateDate: comment.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(
+		http.StatusOK,
+		CommentListResponse{
+			Response: common.Response{
+				StatusCode: http.StatusOK,
+				StatusMsg:  "查询成功",
+			},
+			Comments: commentResponses,
+		},
+	)
 }

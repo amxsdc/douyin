@@ -72,3 +72,9 @@ func DeleteCommentById(commentId string, userId string, videoId string) (string,
 	//返回评论信息和创建日期
 	return commentRet.Content, commentRet.CreatedAt.Format("2006-01-02 15:04:05"), nil
 }
+
+func ListAllComments(videoId string) []model.Comment {
+	var comments []model.Comment
+	dao.SqlSession.Model(&model.Comment{}).Where("video_id= ?", videoId).Find(&comments)
+	return comments
+}

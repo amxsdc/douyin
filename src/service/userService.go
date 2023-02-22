@@ -4,6 +4,8 @@ import (
 	"douyin/src/common"
 	"douyin/src/dao"
 	"douyin/src/model"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -59,6 +61,7 @@ func IsUserExist(userName string, password string, login *model.User) error {
 		return common.ErrorNullPointer
 	}
 	dao.SqlSession.Where("name=?", userName).First(login)
+
 	if !ComparePasswords(login.Password, password) {
 		return common.ErrorPasswordFalse
 	}
@@ -130,3 +133,21 @@ func ComparePasswords(hashedPwd string, plainPwd string) bool {
 }
 
 // CheckIsFollow 检验已登录用户是否关注目标用户
+
+// GetCurrentUser 获取session中的User信息
+func GetCurrentUser(c *gin.Context) (user model.User) {
+	session := sessions.Default(c)
+	user = session.Get("currentUser").(model.User)
+	return user
+}
+
+// SetCurrentUser 设置session中的User信息
+func SetCurrentUser(c *gin.Context, user model.User) error {
+	session := sessions.Default(c)
+	session.Set("currentUser", user)
+	err := session.Save()
+	if err != nil {
+		return common.ErrorSessionSave
+	}
+	return nil
+}
