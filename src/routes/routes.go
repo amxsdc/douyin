@@ -40,6 +40,12 @@ func InitRouter() *gin.Engine {
 			favoriteGroup.GET("/list/", middleware.JwtMiddleware(), controller.FavoriteList) // 喜欢列表
 		}
 
+		messageGroup := douyinGroup.Group("/message")
+		{
+			messageGroup.POST("/action/", middleware.JwtMiddleware(), controller.SendingMessage) // 发送消息
+			messageGroup.GET("/chat/", middleware.JwtMiddleware(), controller.MessageLog)        // 聊天记录
+		}
+
 	}
 
 	return r

@@ -27,7 +27,7 @@ func UserRegister(c *gin.Context) {
 	password := c.Query("password")
 
 	//2.service层处理
-	registerResponse, err := UserRegisterService(username, password)
+	registerResponse, err := UserRegisterService(c, username, password)
 	// UserRegister 用户注册
 
 	//3.返回响应
@@ -40,6 +40,7 @@ func UserRegister(c *gin.Context) {
 		})
 		return
 	}
+
 	c.JSON(http.StatusOK, UserRegisterResponse{
 		Response:            common.Response{StatusCode: 0},
 		UserIdTokenResponse: registerResponse,
@@ -48,7 +49,7 @@ func UserRegister(c *gin.Context) {
 }
 
 // UserRegisterService 用户注册用户登录处理函数
-func UserRegisterService(userName string, passWord string) (UserIdTokenResponse, error) {
+func UserRegisterService(c *gin.Context, userName string, passWord string) (UserIdTokenResponse, error) {
 
 	//0.数据准备
 	var userResponse = UserIdTokenResponse{}
@@ -69,6 +70,12 @@ func UserRegisterService(userName string, passWord string) (UserIdTokenResponse,
 	token, err := middleware.CreateToken(newUser.ID, newUser.Name)
 	if err != nil {
 		return userResponse, err
+	}
+
+	//4.将用户信息存入session中
+	err = service.SetCurrentUser(c, newUser)
+	if err != nil {
+		return UserIdTokenResponse{}, err
 	}
 
 	userResponse = UserIdTokenResponse{
