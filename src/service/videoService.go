@@ -33,7 +33,7 @@ func FeedGet(lastTime int64) ([]model.Video, error) {
 	return VideoList, err
 }
 
-// AddCommentCount add comment_count
+// AddCommentCount
 func AddCommentCount(videoId uint) error {
 
 	if err := dao.SqlSession.Table("videos").Where("id = ?", videoId).Update("comment_count", gorm.Expr("comment_count + 1")).Error; err != nil {
@@ -42,7 +42,7 @@ func AddCommentCount(videoId uint) error {
 	return nil
 }
 
-// ReduceCommentCount reduce comment_count
+// ReduceCommentCount
 func ReduceCommentCount(videoId uint) error {
 
 	if err := dao.SqlSession.Table("videos").Where("id = ?", videoId).Update("comment_count", gorm.Expr("comment_count - 1")).Error; err != nil {
@@ -51,7 +51,7 @@ func ReduceCommentCount(videoId uint) error {
 	return nil
 }
 
-// GetVideoAuthor get video author
+// GetVideoAuthor 获取视频作者
 func GetVideoAuthor(videoId uint) (uint, error) {
 	var video model.Video
 	if err := dao.SqlSession.Table("videos").Where("id = ?", videoId).Find(&video).Error; err != nil {

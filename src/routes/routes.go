@@ -23,41 +23,47 @@ func InitRouter() *gin.Engine {
 		// user路由组
 		userGroup := douyinGroup.Group("/user")
 		{
-			userGroup.GET("/", middleware.JwtMiddleware(), controller.UserInfo) // 用户信息
-			userGroup.POST("/login/", controller.UserLogin)                     // 用户登录
-			userGroup.POST("/register/", controller.UserRegister)               // 用户注册
+			userGroup.GET("/", middleware.JwtMiddleware(), controller.UserInfo)
+			userGroup.POST("/login/", controller.UserLogin)
+			userGroup.POST("/register/", controller.UserRegister)
 		}
 
+		// publish路由组
+		publishGroup := douyinGroup.Group("/publish")
+		{
+			publishGroup.POST("/action/", middleware.JwtMiddleware(), controller.Publish)
+			publishGroup.GET("/list/", middleware.JwtMiddleware(), controller.PublishList)
+
+		}
+
+		// feed
+		douyinGroup.GET("/feed/", controller.Feed)
+
+		favoriteGroup := douyinGroup.Group("favorite")
+		{
+			favoriteGroup.POST("/action/", middleware.JwtMiddleware(), controller.Favorite)
+			favoriteGroup.GET("/list/", middleware.JwtMiddleware(), controller.FavoriteList)
+		}
+
+		// comment路由组
 		commentGroup := douyinGroup.Group("/comment")
 		{
-			commentGroup.POST("/action", middleware.JwtMiddleware(), controller.Comment)    // 发表｜删除评论
-			commentGroup.GET("/list/", middleware.JwtMiddleware(), controller.CommentsList) // 评论列表
+			commentGroup.POST("/action/", middleware.JwtMiddleware(), controller.CommentAction)
+			commentGroup.GET("/list/", middleware.JwtMiddleware(), controller.CommentList)
 		}
 
-		favoriteGroup := douyinGroup.Group("/favorite")
+		// relation路由组
+		relationGroup := douyinGroup.Group("relation")
 		{
-			favoriteGroup.POST("/action/", middleware.JwtMiddleware(), controller.Favorite)  // 点赞
-			favoriteGroup.GET("/list/", middleware.JwtMiddleware(), controller.FavoriteList) // 喜欢列表
+			relationGroup.POST("/action/", middleware.JwtMiddleware(), controller.RelationAction)
+			relationGroup.GET("/follow/list/", middleware.JwtMiddleware(), controller.FollowList)
+			relationGroup.GET("/follower/list/", middleware.JwtMiddleware(), controller.FollowerList)
 		}
 
 		messageGroup := douyinGroup.Group("/message")
 		{
 			messageGroup.POST("/action/", middleware.JwtMiddleware(), controller.SendingMessage) // 发送消息
 			messageGroup.GET("/chat/", middleware.JwtMiddleware(), controller.MessageLog)        // 聊天记录
-		}
-		//follow路由组
-		followsGroup := douyinGroup.Group("/relation")
-		{
-			followsGroup.POST("/action/", middleware.JwtMiddleware(), controller.FollowAction)
-			followingGroup := followsGroup.Group("/follow")
-			{
-				followingGroup.GET("/list/", middleware.JwtMiddleware(), controller.FollowingList)
-			}
-			followerGroup := followsGroup.Group("/follower")
-			{
-				followerGroup.GET("/list/", middleware.JwtMiddleware(), controller.FollowersList)
-			}
-
 		}
 
 	}
