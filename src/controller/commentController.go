@@ -5,178 +5,217 @@ import (
 	"douyin/src/dao"
 	"douyin/src/model"
 	"douyin/src/service"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 )
 
-// CommentLeavingResponse 外部controller返回的响应信息
-type CommentLeavingResponse struct {
-	common.Response
-	CommentResponse CommentResponse `json:"comment"`
-}
-
-// CommentResponse CommentLeavingResponse里面的Comment
-type CommentResponse struct {
-	Id         uint                  `json:"id"`
-	UserInfo   UserInfoQueryResponse `json:"user"`
-	Content    string                `json:"content"`
-	CreateDate string                `json:"create_date"`
-}
-
+// CommentListResponse 评论表的响应结构体
 type CommentListResponse struct {
 	common.Response
-	Comments []CommentResponse `json:"comment_list"`
+	CommentList []CommentResponse `json:"comment_list,omitempty"`
 }
 
-func Comment(c *gin.Context) {
-	// 第一次使用先创建数据库
-	dao.SqlSession.AutoMigrate(&model.Comment{})
+// CommentActionResponse 评论操作的响应结构体
+type CommentActionResponse struct {
+	common.Response
+	Comment CommentResponse `json:"comment,omitempty"`
+}
 
-	// 获取videoId, action_type等基本信息
-	videoId := c.Query("video_id")
-	actionType, _ := strconv.Atoi(c.Query("action_type"))
+// UserResponse 用户信息的响应结构体
+type UserResponse struct {
+	ID            uint   `json:"id,omitempty"`
+	Name          string `json:"name,omitempty"`
+	FollowCount   uint   `json:"follow_count,omitempty"`
+	FollowerCount uint   `json:"follower_count,omitempty"`
+	IsFollow      bool   `json:"is_follow,omitempty"`
+}
 
-	// 从session中获取userId
-	userId := strconv.Itoa(int(service.GetCurrentUser(c).ID))
+// CommentResponse 评论信息的响应结构体
+type CommentResponse struct {
+	ID         uint         `json:"id,omitempty"`
+	Content    string       `json:"content,omitempty"`
+	CreateDate string       `json:"create_date,omitempty"`
+	User       UserResponse `json:"user,omitempty"`
+}
 
-	// 1为发布评论, 2为删除评论
-	if actionType == 1 {
-		commentText := c.Query("comment_text")
-		comment, err := CommentLeaving(videoId, userId, commentText)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, CommentLeavingResponse{
-				Response: common.Response{
-					StatusCode: 1,
-					StatusMsg:  err.Error(),
-				},
-			})
-			return
-		}
-		// 返回响应信息
-		c.JSON(http.StatusOK, CommentLeavingResponse{
-			Response: common.Response{
-				StatusCode: 0,
-				StatusMsg:  "操作成功",
-			},
-			CommentResponse: comment,
+// CommentAction 评论操作
+func CommentAction(c *gin.Context) {
+	//1 数据处理
+	getUserId, _ := c.Get("user_id")
+	var userId uint
+	if v, ok := getUserId.(uint); ok {
+		userId = v
+	}
+	actionType := c.Query("action_type")
+	videoIdStr := c.Query("video_id")
+	videoId, _ := strconv.ParseUint(videoIdStr, 10, 10)
+
+	// 2 判断评论操作类型：1代表发布评论，2代表删除评论
+	//2.1 非合法操作类型
+	if actionType != "1" && actionType != "2" {
+		c.JSON(http.StatusOK, common.Response{
+			StatusCode: 405,
+			StatusMsg:  "Unsupported actionType",
 		})
-	} else if actionType == 2 {
-		commentId := c.Query("comment_id")
-		comment, err := CommentDeleting(videoId, userId, commentId)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, CommentLeavingResponse{
-				Response: common.Response{
-					StatusCode: 1,
-					StatusMsg:  err.Error(),
-				},
-			})
-			return
-		}
-		// 返回响应信息
-		c.JSON(http.StatusOK, CommentLeavingResponse{
-			Response: common.Response{
-				StatusCode: 0,
-				StatusMsg:  "操作成功",
-			},
-			CommentResponse: comment,
-		})
-	} else {
-		// 返回异常响应信息
-		c.JSON(http.StatusBadRequest, CommentLeavingResponse{
-			Response: common.Response{
-				StatusCode: 1,
-				StatusMsg:  "请正确选择模式",
-			},
-		})
+		c.Abort()
 		return
 	}
-}
-
-// CommentLeaving TODO 需要事务
-func CommentLeaving(videoId string, userId string, commentText string) (CommentResponse, error) {
-	// 查询用户信息
-	user, err := UserInfoService(userId)
-
-	// 添加评论
-	commentId, createDate, err := service.AddComment(commentText, userId, videoId)
-
-	// 增加视频评论次数
-	err = service.UpdateVideoCommentCounts(videoId, 1)
-
-	// 返回响应消息
-	return CommentResponse{
-		Id:         commentId,
-		UserInfo:   user,
-		Content:    commentText,
-		CreateDate: createDate,
-	}, err
-}
-
-// CommentDeleting TODO 需要事务
-func CommentDeleting(videoId string, userId string, commentId string) (CommentResponse, error) {
-	// 查询用户信息
-	user, err := UserInfoService(userId)
-	if err != nil {
-		return CommentResponse{}, err
+	//2.2 合法操作类型
+	if actionType == "1" { // 发布评论
+		text := c.Query("comment_text")
+		PostComment(c, userId, text, uint(videoId))
+	} else if actionType == "2" { //删除评论
+		commentIdStr := c.Query("comment_id")
+		commentId, _ := strconv.ParseInt(commentIdStr, 10, 10)
+		DeleteComment(c, uint(videoId), uint(commentId))
 	}
 
-	// 删除评论
-	commentText, createDate, err := service.DeleteCommentById(commentId, userId, videoId)
-
-	if err != nil {
-		return CommentResponse{}, err
-	}
-
-	// 对commentId 进行格式转化
-	comId, _ := strconv.Atoi(commentId)
-
-	// 减少视频评论次数
-	err = service.UpdateVideoCommentCounts(videoId, -1)
-
-	// 返回响应消息
-	return CommentResponse{
-		Id:         uint(comId),
-		UserInfo:   user,
-		Content:    commentText,
-		CreateDate: createDate,
-	}, err
 }
 
-func CommentsList(c *gin.Context) {
-	// 第一次使用先创建数据库
-	dao.SqlSession.AutoMigrate(&model.Comment{})
+// PostComment 发布评论
+func PostComment(c *gin.Context, userId uint, text string, videoId uint) {
+	//1 准备数据模型
+	newComment := model.Comment{
+		VideoId: videoId,
+		UserId:  userId,
+		Content: text,
+	}
 
-	// 获取videoId
-	videoId := c.Query("video_id")
+	//2 调用service层发布评论并改变评论数量，获取video作者信息
+	err1 := dao.SqlSession.Transaction(func(db *gorm.DB) error {
+		if err := service.PostComment(newComment); err != nil {
+			return err
+		}
+		if err := service.AddCommentCount(videoId); err != nil {
+			return err
+		}
+		return nil
+	})
+	getUser, err2 := service.GetUser(userId)
+	videoAuthor, err3 := service.GetVideoAuthor(videoId)
 
-	// 根据videoId查询评论
-	comments := service.ListAllComments(videoId)
+	//3 响应处理
+	if err1 != nil || err2 != nil || err3 != nil {
+		c.JSON(http.StatusOK, common.Response{
+			StatusCode: 403,
+			StatusMsg:  "Failed to post comment",
+		})
+		c.Abort()
+		return
+	}
 
-	// 将Comment插入到CommentListResponse中
-	var commentResponses []CommentResponse
-	for _, comment := range comments {
-		userId := comment.UserId
-		userInfo, err := UserInfoService(strconv.Itoa(int(userId)))
-		if err != nil {
+	c.JSON(http.StatusOK, CommentActionResponse{
+		Response: common.Response{
+			StatusCode: 0,
+			StatusMsg:  "post the comment successfully",
+		},
+		Comment: CommentResponse{
+			ID:         newComment.ID,
+			Content:    newComment.Content,
+			CreateDate: newComment.CreatedAt.Format("01-02"),
+			User: UserResponse{
+				ID:            getUser.ID,
+				Name:          getUser.Name,
+				FollowCount:   getUser.FollowCount,
+				FollowerCount: getUser.FollowerCount,
+				IsFollow:      service.IsFollowing(userId, videoAuthor),
+			},
+		},
+	})
+}
+
+// DeleteComment 删除评论
+func DeleteComment(c *gin.Context, videoId uint, commentId uint) {
+
+	//1 调用service层删除评论并改变评论数量，获取video作者信息
+	err := dao.SqlSession.Transaction(func(db *gorm.DB) error {
+		if err := service.DeleteComment(commentId); err != nil {
+			return err
+		}
+		if err := service.ReduceCommentCount(videoId); err != nil {
+			return err
+		}
+		return nil
+	})
+	//2 响应处理
+	if err != nil {
+		c.JSON(http.StatusOK, common.Response{
+			StatusCode: 403,
+			StatusMsg:  "Failed to delete comment",
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, common.Response{
+		StatusCode: 0,
+		StatusMsg:  "delete the comment successfully",
+	})
+}
+
+// CommentList 获取评论表
+func CommentList(c *gin.Context) {
+	//1 数据处理
+	getUserId, _ := c.Get("user_id")
+	var userId uint
+	if v, ok := getUserId.(uint); ok {
+		userId = v
+	}
+	videoIdStr := c.Query("video_id")
+	videoId, _ := strconv.ParseUint(videoIdStr, 10, 10)
+
+	//2.调用service层获取指定videoid的评论表
+	commentList, err := service.GetCommentList(uint(videoId))
+
+	//2.1 评论表不存在
+	if err != nil {
+		c.JSON(http.StatusOK, common.Response{
+			StatusCode: 403,
+			StatusMsg:  "Failed to get commentList",
+		})
+		c.Abort()
+		return
+	}
+
+	//2.2 评论表存在
+	var responseCommentList []CommentResponse
+	for i := 0; i < len(commentList); i++ {
+		getUser, err1 := service.GetUser(commentList[i].UserId)
+
+		if err1 != nil {
+			c.JSON(http.StatusOK, common.Response{
+				StatusCode: 403,
+				StatusMsg:  "Failed to get commentList.",
+			})
+			c.Abort()
 			return
 		}
-		commentResponses = append(commentResponses, CommentResponse{
-			Id:         comment.ID,
-			UserInfo:   userInfo,
-			Content:    comment.Content,
-			CreateDate: comment.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
+		responseComment := CommentResponse{
+			ID:         commentList[i].ID,
+			Content:    commentList[i].Content,
+			CreateDate: commentList[i].CreatedAt.Format("01-02"), // mm-dd
+			User: UserResponse{
+				ID:            getUser.ID,
+				Name:          getUser.Name,
+				FollowCount:   getUser.FollowCount,
+				FollowerCount: getUser.FollowerCount,
+				IsFollow:      service.IsFollowing(userId, commentList[i].ID),
+			},
+		}
+		responseCommentList = append(responseCommentList, responseComment)
+
 	}
 
-	c.JSON(
-		http.StatusOK,
-		CommentListResponse{
-			Response: common.Response{
-				StatusCode: http.StatusOK,
-				StatusMsg:  "查询成功",
-			},
-			Comments: commentResponses,
+	//响应返回
+	c.JSON(http.StatusOK, CommentListResponse{
+		Response: common.Response{
+			StatusCode: 0,
+			StatusMsg:  "Successfully obtained the comment list.",
 		},
-	)
+		CommentList: responseCommentList,
+	})
+
 }
