@@ -48,6 +48,7 @@ func InitRouter() *gin.Engine {
 		//follow路由组
 		followsGroup := douyinGroup.Group("/relation")
 		{
+			followsGroup.POST("/action/", middleware.JwtMiddleware(), controller.FollowAction)
 			followingGroup := followsGroup.Group("/follow")
 			{
 				followingGroup.GET("/list/", middleware.JwtMiddleware(), controller.FollowingList)
