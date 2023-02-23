@@ -27,10 +27,12 @@ type Follow struct {
 	GuestId uint
 }
 
+// ObtainFollowingList 获取关注列表
 func ObtainFollowingList(userId uint) ([]UserAttr, error) {
-
+	//数据准备
 	var FollowIdList []Follow
 	dao.SqlSession.AutoMigrate(&model.Following{})
+	//获取关注id
 	if err := dao.SqlSession.Table("followings").Where("host_id = ?", userId).Find(&FollowIdList).Error; err != nil {
 		return nil, err
 	}
@@ -39,10 +41,12 @@ func ObtainFollowingList(userId uint) ([]UserAttr, error) {
 
 }
 
+// ObtainFollowerList 获取粉丝列表
 func ObtainFollowerList(userId uint) ([]UserAttr, error) {
-
+	//数据准备
 	var FollowerIdList []Follow
 	dao.SqlSession.AutoMigrate(&model.Followers{})
+	//获取粉丝id
 	if err := dao.SqlSession.Table("followers").Where("host_id = ?", userId).Find(&FollowerIdList).Error; err != nil {
 		return nil, err
 	}
@@ -50,14 +54,17 @@ func ObtainFollowerList(userId uint) ([]UserAttr, error) {
 
 }
 
+// 数据整理
 func tidyData(FollowIdList []Follow) ([]UserAttr, error) {
 	var UserAttrList []UserAttr
 
 	for _, v := range FollowIdList {
 		var user model.User
+		//获取关注或粉丝的详细数据
 		if err := dao.SqlSession.Model(&model.User{}).Where("id = ?", v.GuestId).First(&user).Error; err != nil {
 			return nil, fmt.Errorf("query data failture!:%v", err)
 		}
+		//数据组装
 		UserAttrs := UserAttr{
 			Id:              v.GuestId,
 			Name:            user.Name,

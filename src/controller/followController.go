@@ -22,6 +22,7 @@ type FollowersResponse struct {
 
 func FollowingList(c *gin.Context) {
 	UserIdStr := c.Query("user_id")
+	//获取关注列表信息
 	FollowingList, err := FollowingService(UserIdStr)
 	if err != nil {
 		c.JSON(http.StatusOK, FollowingResponse{
@@ -38,10 +39,13 @@ func FollowingList(c *gin.Context) {
 
 }
 
+// FollowingService 获取关注列表主函数
 func FollowingService(UserIdStr string) ([]service.UserAttr, error) {
+	//验证id合法性
 	if UserIdStr == "" {
 		return nil, fmt.Errorf("invaild userid")
 	}
+	//格式转换
 	UserId, err := strconv.ParseUint(UserIdStr, 10, 64)
 	if err != nil {
 		return nil, err
@@ -54,7 +58,9 @@ func FollowingService(UserIdStr string) ([]service.UserAttr, error) {
 }
 
 func FollowersList(c *gin.Context) {
+
 	UserIdStr := c.Query("user_id")
+	//获取关注列表信息
 	FollowersList, err := FollowerService(UserIdStr)
 	if err != nil {
 		c.JSON(http.StatusOK, FollowersResponse{
@@ -71,10 +77,13 @@ func FollowersList(c *gin.Context) {
 
 }
 
+// FollowerService 获取粉丝列表主函数
 func FollowerService(UserIdStr string) ([]service.UserAttr, error) {
+	//验证id合法性
 	if UserIdStr == "" {
 		return nil, fmt.Errorf("invaild userid")
 	}
+	//格式转换
 	UserId, err := strconv.ParseUint(UserIdStr, 10, 64)
 	if err != nil {
 		return nil, err
